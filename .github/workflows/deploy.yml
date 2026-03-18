@@ -1,0 +1,36 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/betterlk/backend
+
+            # Подтягиваем изменения
+            git pull origin main
+
+            # Устанавливаем зависимости
+            composer install --no-dev --optimize-autoloader
+
+            # Запускаем миграции
+            php artisan migrate --force
+
+            # Сбрасываем и пересоздаём кэш
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            echo "Backend deployed successfully!"
