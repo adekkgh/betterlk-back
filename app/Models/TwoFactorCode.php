@@ -9,11 +9,11 @@ class TwoFactorCode extends Model
     protected $fillable = [
         'user_id',
         'code',
-        'expired_at',
+        'expires_at',
     ];
 
     protected $casts = [
-        'expired_at' => 'datetime',
+        'expires_at' => 'datetime',
     ];
 
     public function isExpired(): bool
