@@ -58,7 +58,7 @@ class ResetPassword extends Mailable
     {
         // Ссылка ведёт на фронтенд, не на API
         // Фронт получит токен из URL и отправит его на API
-        $url = env('FRONTEND_URL') . '/reset-password?token=' . $this->token;
+        $url = config('app.frontend_url') . '/reset-password?token=' . $this->token;
 
         return $this->subject('Сброс пароля — BetterLK')
             ->html("
