@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\PasswordResetToken;
 use App\Models\TwoFactorCode;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -133,6 +134,82 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Вы вышли из системы',
         ])->withCookie('laravel_session');
+    }
+
+    // forgot password
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        // Важно: всегда возвращаем одинаковый ответ
+        // чтобы нельзя было узнать существует ли email в базе
+        if (!$user) {
+            return response()->json([
+                'message' => 'Если этот email зарегистрирован, вы получите письмо с инструкциями.',
+            ]);
+        }
+
+        // Удаляем старые токены этого пользователя
+        PasswordResetToken::where('user_id', $user->id)->delete();
+
+        $token = Str::random(64);
+
+        PasswordResetToken::create([
+            'user_id' => $user->id,
+            'token' => $token,
+            'expires_at' => now()->addMinutes(60),
+        ]);
+
+        Mail::to($user->email)->send(new \App\Mail\ResetPassword($user, $token));
+
+        return response()->json([
+            'message' => 'Если этот email зарегистрирован, вы получите письмо с инструкциями.',
+        ]);
+    }
+
+    // password reset
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token' => ['required', 'string'],
+            'password' => ['required', 'confirmed', Password::min(8)
+                ->mixedCase()
+                ->numbers()
+                ->symbols()],
+        ]);
+
+        $resetToken = PasswordResetToken::where('token', $request->token)->first();
+
+        if (!$resetToken || $resetToken->isExpired()) {
+            return response()->json([
+                'message' => 'Ссылка для сброса пароля недействительна или истекла.',
+            ], 422);
+        }
+
+        $user = User::findOrFail($resetToken->user_id);
+
+        // checking that new password don't match an old one
+        if (Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Новый пароль не должен совпадать с текущим.',
+            ], 422);
+        }
+
+        $user->update([
+            'password' => $request->password,
+        ]);
+
+        $resetToken->delete();
+
+        $user->tokens()->delete();
+
+        return response()->json([
+            'message' => 'Пароль успешно изменён. Войдите с новым паролем.',
+        ]);
     }
 
     // current user
