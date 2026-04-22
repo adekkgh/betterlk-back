@@ -22,7 +22,7 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/health-check', function() {
         return response()->json([
-            'status' => 'ok',
+            'status' => 'active',
             'service' => 'betterlk-back',
             'version' => 'v1',
             'timestamp' => now(),
