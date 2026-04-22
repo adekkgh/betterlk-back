@@ -16,6 +16,8 @@ Route::prefix('v1')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
         Route::post('2fa/verify', [AuthController::class, 'verifyTwoFactor']);
         Route::get('verify-email/{token}', [AuthController::class, 'verifyEmail']);
+        Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
+        Route::post('reset-password',  [AuthController::class, 'resetPassword']);
     });
 
     Route::get('/health-check', function() {
