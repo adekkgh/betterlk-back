@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HomeworkController;
 use App\Http\Controllers\Api\V1\GroupController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -56,6 +57,17 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}', [GroupController::class, 'show']);
             Route::put('/{id}', [GroupController::class, 'update']);
             Route::delete('/{id}', [GroupController::class, 'destroy']);
+        });
+
+        Route::prefix('users')->group(function () {
+            Route::get('/', [UserController::class, 'index']);
+            Route::put('/{id}/role', [UserController::class, 'updateRole']);
+        });
+
+        Route::get('/roles', function () {
+            return response()->json([
+                'data' => \App\Models\Role::all()
+            ]);
         });
     });
 });
