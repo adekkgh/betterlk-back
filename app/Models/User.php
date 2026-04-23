@@ -77,4 +77,14 @@ class User extends Authenticatable
     {
         return $this->email_verified_at !== null;
     }
+
+    public function studentProfile()
+    {
+        return $this->hasOne(StudentProfile::class);
+    }
+
+    public function professorProfile()
+    {
+        return $this->hasOne(ProfessorProfile::class);
+    }
 }
