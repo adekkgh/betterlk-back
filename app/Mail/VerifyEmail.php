@@ -56,7 +56,7 @@ class VerifyEmail extends Mailable
     // TODO: change verification letter
     public function build(): self
     {
-        $url = config('app.url') . '/api/v1/auth/verify-email/' . $this->user->email_verified_token;
+        $url = config('app.frontend_url') . '/verify-email/' . $this->user->email_verified_token;
 
         return $this->subject('Подтверждение регистрации — BetterLK')
             ->html("

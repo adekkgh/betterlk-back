@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\HomeworkController;
+use App\Http\Controllers\Api\V1\GroupController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,5 +35,27 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
+
+        Route::prefix('homeworks')->group(function () {
+            Route::get('/', [HomeworkController::class, 'index']);
+            Route::post('/', [HomeworkController::class, 'store']);
+            Route::get('/{id}', [HomeworkController::class, 'show']);
+            Route::put('/{id}', [HomeworkController::class, 'update']);
+            Route::delete('/{id}', [HomeworkController::class, 'destroy']);
+            Route::post('/{id}/submit', [HomeworkController::class, 'submit']);
+        });
+
+        Route::prefix('submissions')->group(function () {
+            Route::post('/{id}/check', [HomeworkController::class, 'check']);
+            Route::delete('/{submissionId}/files/{fileId}', [HomeworkController::class, 'deleteFile']);
+        });
+
+        Route::prefix('groups')->group(function () {
+            Route::get('/', [GroupController::class, 'index']);
+            Route::post('/', [GroupController::class, 'store']);
+            Route::get('/{id}', [GroupController::class, 'show']);
+            Route::put('/{id}', [GroupController::class, 'update']);
+            Route::delete('/{id}', [GroupController::class, 'destroy']);
+        });
     });
 });
