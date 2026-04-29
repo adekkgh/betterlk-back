@@ -10,11 +10,32 @@ use Illuminate\Http\Request;
 class GroupController extends Controller
 {
     // GET /api/v1/groups — список всех групп
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $groups = Group::with('specialization')
-            ->orderBy('name')
-            ->get();
+        $user = $request->user();
+        $user->load('role');
+
+        $query = Group::with(['specialization', 'students.user']);
+
+        // professor only gets groups he's assigned to
+        if ($user->hasRole('professor')) {
+            $query->whereHas('professors', function ($q) use ($user) {
+                $q->where('professor_id', $user->id);
+            });
+        }
+
+        $groups = $query->orderBy('name')->get()->map(fn($group) => [
+            'id'             => $group->id,
+            'name'           => $group->name,
+            'course'         => $group->course,
+            'specialization' => $group->specialization,
+            'students_count' => $group->students->count(),
+            'students'       => $group->students->map(fn($sp) => [
+                'id'    => $sp->user->id,
+                'name'  => $sp->user->name,
+                'email' => $sp->user->email,
+            ]),
+        ]);
 
         return response()->json(['data' => $groups]);
     }
