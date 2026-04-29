@@ -11,13 +11,14 @@ class HomeworkSubmission extends Model
     protected $table = 'homework_submissions';
 
     protected $fillable = [
-        'homework_id', 'student_id', 'score',
-        'comment', 'is_checked', 'checked_at', 'checked_by',
+        'homework_id', 'student_id', 'student_comment',
+        'links', 'score', 'comment', 'is_checked', 'checked_at', 'checked_by',
     ];
 
     protected $casts = [
         'is_checked' => 'boolean',
         'checked_at' => 'datetime',
+        'links'      => 'array',
     ];
 
     public function homework(): BelongsTo

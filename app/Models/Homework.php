@@ -12,8 +12,7 @@ class Homework extends Model
 
     protected $fillable = [
         'group_id', 'created_by', 'title', 'description',
-        'type', 'max_score', 'deadline',
-        'deadline_extended', 'extended_deadline',
+        'max_score', 'deadline', 'deadline_extended', 'extended_deadline',
     ];
 
     protected $casts = [

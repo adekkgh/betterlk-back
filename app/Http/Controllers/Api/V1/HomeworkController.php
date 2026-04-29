@@ -70,20 +70,36 @@ class HomeworkController extends Controller
                         'id'         => $submission->id,
                         'score'      => $submission->score,
                         'comment'    => $submission->comment,
+                        'student_comment' => $submission->student_comment,
+                        'links'           => $submission->links,
                         'is_checked' => $submission->is_checked,
                         'checked_at' => $submission->checked_at,
-                        'files'      => $submission->files,
+                        'files' => $submission->files->map(fn($file) => [
+                            'id'            => $file->id,
+                            'original_name' => $file->original_name,
+                            'file_type'     => $file->file_type,
+                            'file_size'     => $file->file_size,
+                            'url'           => asset('storage/' . $file->file_path),
+                        ]),
                     ] : null)
                     : null,
                 'submissions' => !$user->hasRole('student')
                     ? $hw->submissions->map(fn($sub) => [
-                        'id'         => $sub->id,
-                        'student'    => $sub->student ? ['id' => $sub->student->id, 'name' => $sub->student->name] : null,
-                        'score'      => $sub->score,
-                        'comment'    => $sub->comment,
-                        'is_checked' => $sub->is_checked,
-                        'checked_at' => $sub->checked_at,
-                        'files'      => $sub->files,
+                        'id'             => $sub->id,
+                        'student'        => $sub->student ? ['id' => $sub->student->id, 'name' => $sub->student->name] : null,
+                        'score'          => $sub->score,
+                        'comment'        => $sub->comment,
+                        'student_comment' => $sub->student_comment,
+                        'links'           => $sub->links,
+                        'is_checked'     => $sub->is_checked,
+                        'checked_at'     => $sub->checked_at,
+                        'files' => $sub->files->map(fn($file) => [
+                            'id'            => $file->id,
+                            'original_name' => $file->original_name,
+                            'file_type'     => $file->file_type,
+                            'file_size'     => $file->file_size,
+                            'url'           => asset('storage/' . $file->file_path),
+                        ]),
                     ])
                     : null,
             ];
@@ -138,7 +154,6 @@ class HomeworkController extends Controller
             'group_id'    => ['required', 'exists:groups,id'],
             'title'       => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'type'        => ['required', 'in:written,oral,file,link'],
             'max_score'   => ['required', 'integer', 'min:1', 'max:1000'],
             'deadline'    => ['required', 'date', 'after:now'],
         ]);
@@ -148,7 +163,6 @@ class HomeworkController extends Controller
             'created_by'  => $request->user()->id,
             'title'       => $request->title,
             'description' => $request->description,
-            'type'        => $request->type,
             'max_score'   => $request->max_score,
             'deadline'    => $request->deadline,
         ]);
@@ -171,7 +185,6 @@ class HomeworkController extends Controller
         $request->validate([
             'title'             => ['sometimes', 'string', 'max:255'],
             'description'       => ['sometimes', 'nullable', 'string'],
-            'type'              => ['sometimes', 'in:written,oral,file,link'],
             'max_score'         => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'deadline'          => ['sometimes', 'date'],
             'extended_deadline' => ['sometimes', 'nullable', 'date', 'after:deadline'],
@@ -186,7 +199,7 @@ class HomeworkController extends Controller
         }
 
         $homework->update($request->only([
-            'title', 'description', 'type', 'max_score', 'deadline',
+            'title', 'description', 'max_score', 'deadline',
         ]));
 
         return response()->json([
@@ -212,9 +225,7 @@ class HomeworkController extends Controller
     public function submit(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'Не авторизован.'], 401);
-        }
+        if (!$user) return response()->json(['message' => 'Не авторизован.'], 401);
         $user->load('role');
 
         if (!$user->hasRole('student')) {
@@ -227,24 +238,61 @@ class HomeworkController extends Controller
             return response()->json(['message' => 'Дедлайн истёк.'], 422);
         }
 
-        // Ищем существующий ответ или создаём новый
+        $request->validate([
+            'student_comment' => ['nullable', 'string', 'max:2000'],
+            'links'           => ['nullable', 'array', 'max:10'],
+            'files'           => ['nullable', 'array', 'max:5'],
+            'files.*'         => [
+                'file',
+                'max:20480', // 20MB
+                'mimes:' . implode(',', [
+                    // Документы
+                    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf',
+                    // Изображения
+                    'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp',
+                    // Архивы
+                    'zip', 'rar', '7z', 'tar', 'gz',
+                    // Код
+                    'py', 'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'scss',
+                    'php', 'java', 'cpp', 'c', 'h', 'cs', 'go', 'rs',
+                    'sql', 'json', 'xml', 'yaml', 'yml', 'md', 'csv',
+                    // Jupyter
+                    'ipynb',
+                ]),
+            ],
+        ]);
+
+        // Хотя бы одно поле должно быть заполнено
+        if (!$request->student_comment && !$request->links && !$request->hasFile('files')) {
+            return response()->json([
+                'message' => 'Добавьте комментарий, ссылку или прикрепите файл.',
+            ], 422);
+        }
+
         $submission = HomeworkSubmission::firstOrCreate([
             'homework_id' => $homework->id,
             'student_id'  => $user->id,
         ]);
 
-        // Если задание уже проверено — нельзя изменить
         if ($submission->is_checked) {
             return response()->json(['message' => 'Задание уже проверено.'], 422);
         }
 
-        // Загружаем файлы если есть
-        if ($request->hasFile('files')) {
-            $request->validate([
-                'files'   => ['array', 'max:5'],
-                'files.*' => ['file', 'max:20480'], // 20MB на файл
-            ]);
+        // Обновляем текстовые поля если переданы
+        $updateData = [];
+        if ($request->has('student_comment')) {
+            $updateData['student_comment'] = $request->student_comment;
+        }
+        if ($request->has('links')) {
+            // Фильтруем пустые ссылки
+            $updateData['links'] = array_values(array_filter($request->links ?? []));
+        }
+        if (!empty($updateData)) {
+            $submission->update($updateData);
+        }
 
+        // Загружаем файлы
+        if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
                 $path = $file->store("submissions/{$submission->id}", 'public');
 
@@ -260,7 +308,7 @@ class HomeworkController extends Controller
 
         return response()->json([
             'message' => 'Задание сдано.',
-            'data'    => $submission->load('files'),
+            'data'    => $submission->fresh()->load('files'),
         ]);
     }
 
