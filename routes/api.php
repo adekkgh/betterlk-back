@@ -62,11 +62,18 @@ Route::prefix('v1')->group(function () {
         Route::prefix('users')->group(function () {
             Route::get('/', [UserController::class, 'index']);
             Route::put('/{id}/role', [UserController::class, 'updateRole']);
+            Route::put('/{id}/group', [UserController::class, 'updateGroup']);
         });
 
         Route::get('/roles', function () {
             return response()->json([
                 'data' => \App\Models\Role::all()
+            ]);
+        });
+
+        Route::get('/specializations', function () {
+            return response()->json([
+                'data' => \App\Models\Specialization::all()
             ]);
         });
     });
