@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HomeworkController;
 use App\Http\Controllers\Api\V1\GroupController;
 use App\Http\Controllers\Api\V1\JournalController;
+use App\Http\Controllers\Api\V1\SpecializationController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Http\Request;
@@ -89,10 +90,11 @@ Route::prefix('v1')->group(function () {
             ]);
         });
 
-        Route::get('/specializations', function () {
-            return response()->json([
-                'data' => \App\Models\Specialization::all()
-            ]);
+        Route::prefix('specializations')->group(function () {
+            Route::get('/', [SpecializationController::class, 'index']);
+            Route::post('/', [SpecializationController::class, 'store']);
+            Route::put('/{id}', [SpecializationController::class, 'update']);
+            Route::delete('/{id}', [SpecializationController::class, 'destroy']);
         });
     });
 });
