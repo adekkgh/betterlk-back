@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HomeworkController;
 use App\Http\Controllers\Api\V1\GroupController;
+use App\Http\Controllers\Api\V1\JournalController;
+use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -63,6 +65,22 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [UserController::class, 'index']);
             Route::put('/{id}/role', [UserController::class, 'updateRole']);
             Route::put('/{id}/group', [UserController::class, 'updateGroup']);
+        });
+
+        Route::prefix('subjects')->group(function () {
+            Route::get('/', [SubjectController::class, 'index']);
+            Route::post('/', [SubjectController::class, 'store']);
+            Route::put('/{id}', [SubjectController::class, 'update']);
+            Route::delete('/{id}', [SubjectController::class, 'destroy']);
+        });
+
+        Route::prefix('journals')->group(function () {
+            Route::get('/', [JournalController::class, 'index']);
+            Route::post('/', [JournalController::class, 'store']);
+            Route::get('/{id}', [JournalController::class, 'show']);
+            Route::delete('/{id}', [JournalController::class, 'destroy']);
+            Route::post('/{id}/entry', [JournalController::class, 'upsertEntry']);
+            Route::post('/{id}/rating', [JournalController::class, 'upsertRating']);
         });
 
         Route::get('/roles', function () {
