@@ -52,6 +52,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('submissions')->group(function () {
             Route::post('/{id}/check', [HomeworkController::class, 'check']);
             Route::delete('/{submissionId}/files/{fileId}', [HomeworkController::class, 'deleteFile']);
+            Route::post('/{id}/recheck', [HomeworkController::class, 'recheck']);
         });
 
         Route::prefix('groups')->group(function () {
@@ -95,6 +96,29 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [SpecializationController::class, 'store']);
             Route::put('/{id}', [SpecializationController::class, 'update']);
             Route::delete('/{id}', [SpecializationController::class, 'destroy']);
+        });
+
+        Route::get('/users/{id}/subjects', [UserController::class, 'getSubjects']);
+        Route::put('/users/{id}/subjects', [UserController::class, 'updateSubjects']);
+
+        Route::get('/me/subjects', function (Request $request) {
+            $user = $request->user();
+            if (!$user) return response()->json(['message' => 'Не авторизован.'], 401);
+
+            if ($user->hasAnyRole(['admin', 'moderator'])) {
+                // Админ видит все предметы
+                return response()->json(['data' => \App\Models\Subject::orderBy('name')->get()]);
+            }
+
+            // Препод видит только свои предметы
+            $subjects = \App\Models\ProfessorSubjectAssignment::where('professor_id', $user->id)
+                ->with('subject')
+                ->get()
+                ->map(fn($a) => $a->subject)
+                ->filter()
+                ->values();
+
+            return response()->json(['data' => $subjects]);
         });
     });
 });
