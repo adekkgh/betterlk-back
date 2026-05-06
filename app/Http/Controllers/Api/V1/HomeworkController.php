@@ -365,6 +365,8 @@ class HomeworkController extends Controller
             'checked_by' => $request->user()->id,
         ]);
 
+        $this->writeToJournal($submission, $request->score, $request->entry_date);
+
         return response()->json([
             'message' => 'Задание проверено.',
             'data'    => $submission->fresh()->load(['student', 'files', 'checker']),
@@ -380,6 +382,8 @@ class HomeworkController extends Controller
 
         $submission = HomeworkSubmission::findOrFail($id);
 
+        $this->removeFromJournal($submission);
+
         $submission->update([
             'is_checked' => false,
             'score'      => null,
@@ -392,5 +396,81 @@ class HomeworkController extends Controller
             'message' => 'Статус проверки сброшен.',
             'data'    => $submission->fresh(),
         ]);
+    }
+
+    private function writeToJournal(HomeworkSubmission $submission, int $score, ?string $entryDate): void
+    {
+        $homework = $submission->homework;
+
+        // Если у задания нет предмета — не знаем в какой журнал писать
+        if (!$homework->subject_id) return;
+
+        // Группа студента
+        $groupId = $submission->student?->studentProfile?->group_id;
+        if (!$groupId) return;
+
+        // Дата записи — переданная или сегодня
+        $date = $entryDate ? \Carbon\Carbon::parse($entryDate) : now();
+
+        // Определяем семестр по месяцу
+        $month    = (int) $date->format('n');
+        $semester = ($month >= 9 || $month === 1) ? 1 : 2;
+
+        // Год журнала: для 1 семестра — год сентября, для 2 — тот же год
+        $journalYear = $semester === 1 && $month === 1
+            ? $date->year - 1  // январь относится к семестру предыдущего года
+            : $date->year;
+
+        // Ищем журнал
+        $journal = \App\Models\Journal::where('subject_id', $homework->subject_id)
+            ->where('group_id',  $groupId)
+            ->where('semester',  $semester)
+            ->where('year',      $journalYear)
+            ->first();
+
+        if (!$journal) return;
+
+        // Записываем или обновляем запись
+        \App\Models\JournalEntry::updateOrCreate(
+            [
+                'journal_id' => $journal->id,
+                'student_id' => $submission->student_id,
+                'date'       => $date->format('Y-m-d'),
+            ],
+            [
+                'score'     => $score,
+                'is_absent' => false,
+            ]
+        );
+    }
+
+    private function removeFromJournal(HomeworkSubmission $submission): void
+    {
+        $homework = $submission->homework;
+        if (!$homework->subject_id) return;
+
+        $groupId = $submission->student?->studentProfile?->group_id;
+        if (!$groupId) return;
+
+        // Ищем все журналы этого предмета и группы, удаляем запись студента за дату проверки
+        if (!$submission->checked_at) return;
+
+        $date     = \Carbon\Carbon::parse($submission->checked_at);
+        $month    = (int) $date->format('n');
+        $semester = ($month >= 9 || $month === 1) ? 1 : 2;
+        $journalYear = $semester === 1 && $month === 1 ? $date->year - 1 : $date->year;
+
+        $journal = \App\Models\Journal::where('subject_id', $homework->subject_id)
+            ->where('group_id',  $groupId)
+            ->where('semester',  $semester)
+            ->where('year',      $journalYear)
+            ->first();
+
+        if (!$journal) return;
+
+        \App\Models\JournalEntry::where('journal_id', $journal->id)
+            ->where('student_id', $submission->student_id)
+            ->where('date', $date->format('Y-m-d'))
+            ->delete();
     }
 }
