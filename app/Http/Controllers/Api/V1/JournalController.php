@@ -212,4 +212,51 @@ class JournalController extends Controller
 
         return response()->json(['message' => 'Оценка сохранена.', 'data' => $rating]);
     }
+
+    // POST /api/v1/journals/{id}/entries/batch — массовое обновление
+    public function batchEntries(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) return response()->json(['message' => 'Не авторизован.'], 401);
+        $user->load('role');
+
+        if (!$user->hasAnyRole(['admin', 'moderator', 'professor'])) {
+            return response()->json(['message' => 'Недостаточно прав.'], 403);
+        }
+
+        $journal = \App\Models\Journal::findOrFail($id);
+
+        $request->validate([
+            'entries'              => ['required', 'array'],
+            'entries.*.student_id' => ['required', 'exists:users,id'],
+            'entries.*.date'       => ['required', 'date'],
+            'entries.*.is_absent'  => ['required', 'boolean'],
+            'entries.*.score'      => ['nullable', 'integer', 'min:0', 'max:100'],
+        ]);
+
+        foreach ($request->entries as $item) {
+            // Если ячейка пустая — удаляем запись
+            if (!$item['is_absent'] && $item['score'] === null) {
+                \App\Models\JournalEntry::where('journal_id', $journal->id)
+                    ->where('student_id', $item['student_id'])
+                    ->where('date', $item['date'])
+                    ->delete();
+                continue;
+            }
+
+            \App\Models\JournalEntry::updateOrCreate(
+                [
+                    'journal_id' => $journal->id,
+                    'student_id' => $item['student_id'],
+                    'date'       => $item['date'],
+                ],
+                [
+                    'is_absent' => $item['is_absent'],
+                    'score'     => $item['score'],
+                ]
+            );
+        }
+
+        return response()->json(['message' => 'Изменения сохранены.']);
+    }
 }

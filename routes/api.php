@@ -82,6 +82,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}', [JournalController::class, 'show']);
             Route::delete('/{id}', [JournalController::class, 'destroy']);
             Route::post('/{id}/entry', [JournalController::class, 'upsertEntry']);
+            Route::post('/{id}/entries/batch', [JournalController::class, 'batchEntries']);
             Route::post('/{id}/rating', [JournalController::class, 'upsertRating']);
         });
 
