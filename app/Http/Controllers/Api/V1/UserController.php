@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\ProfessorGroup;
 use App\Models\ProfessorProfile;
+use App\Models\ProfessorSubjectAssignment;
 use App\Models\Role;
 use App\Models\StudentProfile;
 use App\Models\User;
@@ -138,5 +139,52 @@ class UserController extends Controller
             'message' => 'Группа обновлена.',
             'data'    => $user->fresh()->load(['role', 'studentProfile.group']),
         ]);
+    }
+
+    // GET /api/v1/users/{id}/subjects
+    public function getSubjects(Request $request, int $id): JsonResponse
+    {
+        if (!$this->isAdmin($request) && $request->user()?->id !== $id) {
+            return response()->json(['message' => 'Нет доступа.'], 403);
+        }
+
+        $subjects = ProfessorSubjectAssignment::where('professor_id', $id)
+            ->with('subject')
+            ->get()
+            ->map(fn($a) => $a->subject)
+            ->filter()
+            ->values();
+
+        return response()->json(['data' => $subjects]);
+    }
+
+    // PUT /api/v1/users/{id}/subjects
+    public function updateSubjects(Request $request, int $id): JsonResponse
+    {
+        if (!$this->isAdmin($request) && !$request->user()?->hasRole('moderator')) {
+            return response()->json(['message' => 'Недостаточно прав.'], 403);
+        }
+
+        $user = User::with('role')->findOrFail($id);
+
+        if (!$user->hasRole('professor')) {
+            return response()->json(['message' => 'Пользователь не является преподавателем.'], 422);
+        }
+
+        $request->validate([
+            'subject_ids'   => ['required', 'array'],
+            'subject_ids.*' => ['exists:subjects,id'],
+        ]);
+
+        ProfessorSubjectAssignment::where('professor_id', $id)->delete();
+
+        foreach ($request->subject_ids as $subjectId) {
+            ProfessorSubjectAssignment::create([
+                'professor_id' => $id,
+                'subject_id'   => $subjectId,
+            ]);
+        }
+
+        return response()->json(['message' => 'Предметы обновлены.']);
     }
 }

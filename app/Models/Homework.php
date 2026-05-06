@@ -11,7 +11,7 @@ class Homework extends Model
     protected $table = 'homeworks';
 
     protected $fillable = [
-        'group_id', 'created_by', 'title', 'description',
+        'group_id', 'created_by', 'title', 'description', 'subject_id',
         'max_score', 'deadline', 'deadline_extended', 'extended_deadline',
     ];
 
@@ -34,6 +34,11 @@ class Homework extends Model
     public function submissions(): HasMany
     {
         return $this->hasMany(HomeworkSubmission::class);
+    }
+
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
     }
 
     // active deadline considering its extension

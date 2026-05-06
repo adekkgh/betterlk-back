@@ -28,7 +28,7 @@ class HomeworkController extends Controller
         }
         $user->load('role');
 
-        $query = Homework::with(['group', 'creator', 'submissions.files', 'submissions.student'])
+        $query = Homework::with(['group', 'creator', 'subject', 'submissions.files', 'submissions.student'])
             ->orderBy('deadline', 'asc');
 
         // Студент видит только задания своей группы
@@ -61,6 +61,7 @@ class HomeworkController extends Controller
                 'extended_deadline' => $hw->extended_deadline,
                 'is_expired'        => $hw->isExpired(),
                 'group'             => $hw->group,
+                'subject'           => $hw->subject ? ['id' => $hw->subject->id, 'name' => $hw->subject->name] : null,
                 'creator'           => [
                     'id'   => $hw->creator->id,
                     'name' => $hw->creator->name,
@@ -152,6 +153,7 @@ class HomeworkController extends Controller
 
         $request->validate([
             'group_id'    => ['required', 'exists:groups,id'],
+            'subject_id'  => ['nullable', 'exists:subjects,id'],
             'title'       => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'max_score'   => ['required', 'integer', 'min:1', 'max:1000'],
@@ -160,6 +162,7 @@ class HomeworkController extends Controller
 
         $homework = Homework::create([
             'group_id'    => $request->group_id,
+            'subject_id'  => $request->subject_id,
             'created_by'  => $request->user()->id,
             'title'       => $request->title,
             'description' => $request->description,
@@ -199,7 +202,7 @@ class HomeworkController extends Controller
         }
 
         $homework->update($request->only([
-            'title', 'description', 'max_score', 'deadline',
+            'title', 'description', 'max_score', 'deadline', 'subject_id',
         ]));
 
         return response()->json([
@@ -365,6 +368,29 @@ class HomeworkController extends Controller
         return response()->json([
             'message' => 'Задание проверено.',
             'data'    => $submission->fresh()->load(['student', 'files', 'checker']),
+        ]);
+    }
+
+    // POST /api/v1/submissions/{id}/recheck — снять проверку
+    public function recheck(Request $request, int $id): JsonResponse
+    {
+        if (!$this->canManage($request)) {
+            return response()->json(['message' => 'Недостаточно прав.'], 403);
+        }
+
+        $submission = HomeworkSubmission::findOrFail($id);
+
+        $submission->update([
+            'is_checked' => false,
+            'score'      => null,
+            'comment'    => null,
+            'checked_at' => null,
+            'checked_by' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Статус проверки сброшен.',
+            'data'    => $submission->fresh(),
         ]);
     }
 }
