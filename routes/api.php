@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HomeworkController;
 use App\Http\Controllers\Api\V1\GroupController;
 use App\Http\Controllers\Api\V1\JournalController;
+use App\Http\Controllers\Api\V1\NewsController;
 use App\Http\Controllers\Api\V1\SpecializationController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -16,6 +17,15 @@ Route::prefix('v1')->group(function () {
         return $request->user();
     })->middleware('auth:sanctum');
 
+    Route::get('/health-check', function() {
+        return response()->json([
+            'status' => 'active',
+            'service' => 'betterlk-back',
+            'version' => 'v1',
+            'timestamp' => now(),
+        ]);
+    });
+
     // public routes
     Route::prefix('auth')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
@@ -24,15 +34,6 @@ Route::prefix('v1')->group(function () {
         Route::get('verify-email/{token}', [AuthController::class, 'verifyEmail']);
         Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('reset-password',  [AuthController::class, 'resetPassword']);
-    });
-
-    Route::get('/health-check', function() {
-        return response()->json([
-            'status' => 'active',
-            'service' => 'betterlk-back',
-            'version' => 'v1',
-            'timestamp' => now(),
-        ]);
     });
 
     // authorized routes
@@ -86,17 +87,24 @@ Route::prefix('v1')->group(function () {
             Route::post('/{id}/rating', [JournalController::class, 'upsertRating']);
         });
 
-        Route::get('/roles', function () {
-            return response()->json([
-                'data' => \App\Models\Role::all()
-            ]);
-        });
-
         Route::prefix('specializations')->group(function () {
             Route::get('/', [SpecializationController::class, 'index']);
             Route::post('/', [SpecializationController::class, 'store']);
             Route::put('/{id}', [SpecializationController::class, 'update']);
             Route::delete('/{id}', [SpecializationController::class, 'destroy']);
+        });
+
+        Route::prefix('news')->group(function () {
+            Route::get('/', [NewsController::class, 'index']);
+            Route::get('/{id}', [NewsController::class, 'show']);
+            Route::post('/', [NewsController::class, 'store']);
+            Route::delete('/{id}', [NewsController::class, 'destroy']);
+        });
+
+        Route::get('/roles', function () {
+            return response()->json([
+                'data' => \App\Models\Role::all()
+            ]);
         });
 
         Route::get('/users/{id}/subjects', [UserController::class, 'getSubjects']);
