@@ -16,7 +16,7 @@ class SubjectController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if (!$request->user()?->hasAnyRole(['admin', 'moderator'])) {
+        if (!$request->user()?->hasAnyRole(['admin', 'moderator', 'professor'])) {
             return response()->json(['message' => 'Недостаточно прав.'], 403);
         }
 

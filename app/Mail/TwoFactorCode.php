@@ -29,7 +29,7 @@ class TwoFactorCode extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Two Factor Code',
+            subject: 'Подтверждение входа',
         );
     }
 
@@ -39,7 +39,8 @@ class TwoFactorCode extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'view.name',
+            view: 'emails.two-factor',
+            with: ['name' => $this->user->name, 'code' => $this->code, 'minutes' => 10],
         );
     }
 
@@ -51,19 +52,5 @@ class TwoFactorCode extends Mailable
     public function attachments(): array
     {
         return [];
-    }
-
-    // TODO: change verification letter
-    public function build(): self
-    {
-        return $this->subject('Код входа — BetterLK')
-            ->html("
-                        <h2>Код подтверждения входа</h2>
-                        <p>Ваш код для входа в BetterLK:</p>
-                        <div style='font-size:32px;font-weight:bold;letter-spacing:8px;color:#4F46E5;margin:24px 0;'>
-                            {$this->code}
-                        </div>
-                        <p style='color:#6B7280;'>Код действителен 10 минут. Никому не сообщайте его.</p>
-                    ");
     }
 }

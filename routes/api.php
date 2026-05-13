@@ -59,9 +59,12 @@ Route::prefix('v1')->group(function () {
         Route::prefix('groups')->group(function () {
             Route::get('/', [GroupController::class, 'index']);
             Route::post('/', [GroupController::class, 'store']);
+            Route::get('/students-without-group', [GroupController::class, 'studentsWithoutGroup']);
             Route::get('/{id}', [GroupController::class, 'show']);
             Route::put('/{id}', [GroupController::class, 'update']);
             Route::delete('/{id}', [GroupController::class, 'destroy']);
+            Route::post('/{id}/students', [GroupController::class, 'addStudents']);
+            Route::delete('/{id}/students', [GroupController::class, 'removeStudents']);
         });
 
         Route::prefix('users')->group(function () {
