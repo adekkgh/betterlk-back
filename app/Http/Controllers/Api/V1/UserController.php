@@ -19,10 +19,15 @@ class UserController extends Controller
         return $request->user()?->hasRole('admin');
     }
 
+    private function canManage(Request $request): bool
+    {
+        return $request->user()?->hasAnyRole(['admin', 'moderator']);
+    }
+
     // GET /api/v1/users — список всех пользователей
     public function index(Request $request): JsonResponse
     {
-        if (!$this->isAdmin($request)) {
+        if (!$this->canManage($request)) {
             return response()->json(['message' => 'Недостаточно прав.'], 403);
         }
 

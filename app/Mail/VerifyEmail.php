@@ -29,7 +29,7 @@ class VerifyEmail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Verify Email',
+            subject: 'Подтверждение регистрации',
         );
     }
 
@@ -38,8 +38,11 @@ class VerifyEmail extends Mailable
      */
     public function content(): Content
     {
+        $verificationUrl = config('app.frontend_url') . '/verify-email/' . $this->user->email_verified_token;
+
         return new Content(
-            view: 'view.name',
+            view: 'emails.verify-email',
+            with: ['name' => $this->user->name, 'url' => $verificationUrl],
         );
     }
 
@@ -51,21 +54,5 @@ class VerifyEmail extends Mailable
     public function attachments(): array
     {
         return [];
-    }
-
-    // TODO: change verification letter
-    public function build(): self
-    {
-        $url = config('app.frontend_url') . '/verify-email/' . $this->user->email_verified_token;
-
-        return $this->subject('Подтверждение регистрации — BetterLK')
-            ->html("
-                        <h2>Добро пожаловать в BetterLK!</h2>
-                        <p>Для подтверждения регистрации нажмите на кнопку ниже:</p>
-                        <a href='{$url}' style='background:#4F46E5;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;'>
-                            Подтвердить email
-                        </a>
-                        <p style='color:#6B7280;margin-top:16px;'>Ссылка действительна 24 часа.</p>
-                    ");
     }
 }

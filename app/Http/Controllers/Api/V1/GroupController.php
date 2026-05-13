@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Group;
+use App\Models\StudentProfile;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -103,5 +105,47 @@ class GroupController extends Controller
         Group::findOrFail($id)->delete();
 
         return response()->json(['message' => 'Группа удалена.']);
+    }
+
+    // TODO: remove and just add filter on index endpoint
+    // GET /api/v1/groups/students-without-group
+    public function studentsWithoutGroup(): JsonResponse
+    {
+        $students = User::whereHas('role', fn($q) => $q->where('name', 'student'))
+            ->whereDoesntHave('studentProfile', fn($q) => $q->whereNotNull('group_id'))
+            ->orWhereHas('studentProfile', fn($q) => $q->whereNull('group_id'))
+            ->select('id', 'name', 'email')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json(['data' => $students]);
+    }
+
+    // POST /api/v1/groups/{id}/students  body: { student_ids: [1,2,3] }
+    public function addStudents(Request $request, int $id): JsonResponse
+    {
+        $group = Group::findOrFail($id);
+        $request->validate(['student_ids' => ['required', 'array'], 'student_ids.*' => ['exists:users,id']]);
+
+        foreach ($request->student_ids as $studentId) {
+            StudentProfile::updateOrCreate(
+                ['user_id' => $studentId],
+                ['group_id' => $group->id]
+            );
+        }
+
+        return response()->json(['message' => 'Студенты добавлены.']);
+    }
+
+    // DELETE /api/v1/groups/{id}/students  body: { student_ids: [1,2,3] }
+    public function removeStudents(Request $request, int $id): JsonResponse
+    {
+        $request->validate(['student_ids' => ['required', 'array'], 'student_ids.*' => ['exists:users,id']]);
+
+        StudentProfile::where('group_id', $id)
+            ->whereIn('user_id', $request->student_ids)
+            ->update(['group_id' => null]);
+
+        return response()->json(['message' => 'Студенты удалены из группы.']);
     }
 }
